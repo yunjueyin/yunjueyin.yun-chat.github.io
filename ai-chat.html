@@ -1,0 +1,2189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>云-chat</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+        
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f9fafb;
+            --bg-sidebar: #f3f4f6;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --text-tertiary: #9ca3af;
+            --border-color: #e5e7eb;
+            --accent-color: #2563eb;
+            --accent-hover: #1d4ed8;
+            --accent-light: #dbeafe;
+            --user-msg-bg: #2563eb;
+            --user-msg-text: #ffffff;
+            --ai-msg-bg: #f3f4f6;
+            --ai-msg-text: #111827;
+            --shadow: 0 1px 3px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 25px rgba(0,0,0,0.1);
+            --radius: 12px;
+            --radius-lg: 16px;
+            --header-height: 56px;
+            --input-area-height: 80px;
+        }
+
+        .dark-mode {
+            --bg-primary: #1f2937;
+            --bg-secondary: #111827;
+            --bg-sidebar: #1f2937;
+            --text-primary: #f9fafb;
+            --text-secondary: #d1d5db;
+            --text-tertiary: #9ca3af;
+            --border-color: #374151;
+            --accent-color: #3b82f6;
+            --accent-hover: #2563eb;
+            --accent-light: #1e3a5f;
+            --user-msg-bg: #3b82f6;
+            --user-msg-text: #ffffff;
+            --ai-msg-bg: #374151;
+            --ai-msg-text: #f9fafb;
+            --shadow: 0 1px 3px rgba(0,0,0,0.3);
+            --shadow-lg: 0 10px 25px rgba(0,0,0,0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html {
+            font-size: 16px;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            transition: background 0.3s, color 0.3s;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+            height: 100dvh;
+            position: relative;
+        }
+
+        /* 侧边栏遮罩 */
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 99;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+
+        .sidebar-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* 侧边栏 */
+        .sidebar {
+            width: 260px;
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .new-chat-btn {
+            width: 100%;
+            padding: 12px;
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: background 0.2s;
+            touch-action: manipulation;
+        }
+
+        .new-chat-btn:hover {
+            background: var(--accent-hover);
+        }
+
+        .new-chat-btn:active {
+            transform: scale(0.98);
+        }
+
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .chat-history-item {
+            padding: 10px 12px;
+            border-radius: var(--radius);
+            cursor: pointer;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-secondary);
+            font-size: 14px;
+            transition: all 0.2s;
+            position: relative;
+            touch-action: manipulation;
+        }
+
+        .chat-history-item:hover {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        .chat-history-item.active {
+            background: var(--accent-light);
+            color: var(--accent-color);
+        }
+
+        .chat-history-item .delete-btn {
+            position: absolute;
+            right: 8px;
+            opacity: 0;
+            transition: opacity 0.2s;
+            background: none;
+            border: none;
+            color: inherit;
+            cursor: pointer;
+            padding: 4px 8px;
+            font-size: 14px;
+            touch-action: manipulation;
+        }
+
+        .chat-history-item:hover .delete-btn,
+        .chat-history-item .delete-btn.visible {
+            opacity: 1;
+        }
+
+        .sidebar-footer {
+            padding: 12px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .settings-btn {
+            width: 100%;
+            padding: 10px;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            transition: all 0.2s;
+            touch-action: manipulation;
+        }
+
+        .settings-btn:hover {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        .settings-btn:active {
+            transform: scale(0.98);
+        }
+
+        /* 主内容区 */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            min-width: 0;
+        }
+
+        .chat-header {
+            height: var(--header-height);
+            padding: 0 16px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--bg-primary);
+            flex-shrink: 0;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+            flex: 1;
+        }
+
+        .menu-btn {
+            display: none;
+            width: 40px;
+            height: 40px;
+            border: none;
+            background: transparent;
+            color: var(--text-primary);
+            cursor: pointer;
+            border-radius: 8px;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            touch-action: manipulation;
+        }
+
+        .menu-btn:hover {
+            background: var(--bg-secondary);
+        }
+
+        .chat-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .mode-toggle {
+            display: flex;
+            background: var(--bg-secondary);
+            border-radius: 24px;
+            padding: 3px;
+            border: 1px solid var(--border-color);
+        }
+
+        .mode-btn {
+            padding: 10px 22px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 22px;
+            font-size: 15px;
+            font-weight: 500;
+            transition: all 0.2s;
+            touch-action: manipulation;
+            white-space: nowrap;
+        }
+
+        .mode-btn.active {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        .icon-btn {
+            width: 40px;
+            height: 40px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.2s;
+            touch-action: manipulation;
+        }
+
+        .icon-btn:hover {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        .icon-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* 消息区域 */
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .welcome-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100%;
+            text-align: center;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .welcome-icon {
+            width: 64px;
+            height: 64px;
+            background: var(--accent-light);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+        }
+
+        .welcome-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .welcome-subtitle {
+            color: var(--text-secondary);
+            max-width: 400px;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            max-width: 500px;
+            width: 100%;
+            margin-top: 16px;
+        }
+
+        .quick-action-btn {
+            padding: 16px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+            color: var(--text-primary);
+            touch-action: manipulation;
+        }
+
+        .quick-action-btn:hover {
+            border-color: var(--accent-color);
+            box-shadow: var(--shadow);
+        }
+
+        .quick-action-btn:active {
+            transform: scale(0.98);
+        }
+
+        .quick-action-btn .icon {
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+
+        .quick-action-btn .label {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .quick-action-btn .desc {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            margin-top: 4px;
+            line-height: 1.4;
+        }
+
+        .message {
+            display: flex;
+            gap: 12px;
+            max-width: 800px;
+            width: 100%;
+            margin: 0 auto;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .message.user .message-avatar {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        .message.ai .message-avatar {
+            background: var(--accent-light);
+            color: var(--accent-color);
+        }
+
+        .message-content {
+            flex: 1;
+            padding: 12px 16px;
+            border-radius: var(--radius);
+            line-height: 1.6;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            min-width: 0;
+        }
+
+        .message.user .message-content {
+            background: var(--user-msg-bg);
+            color: var(--user-msg-text);
+        }
+
+        .message.ai .message-content {
+            background: var(--ai-msg-bg);
+            color: var(--ai-msg-text);
+        }
+
+        .message-image {
+            max-width: 100%;
+            border-radius: var(--radius);
+            margin-top: 8px;
+            display: block;
+        }
+
+        .message-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .message:hover .message-actions,
+        .message-actions.visible {
+            opacity: 1;
+        }
+
+        .msg-action-btn {
+            padding: 6px 10px;
+            border: none;
+            background: transparent;
+            color: var(--text-tertiary);
+            cursor: pointer;
+            font-size: 12px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            touch-action: manipulation;
+        }
+
+        .msg-action-btn:hover {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        /* 输入区域 */
+        .input-area {
+            padding: 12px 16px;
+            background: var(--bg-primary);
+            border-top: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+
+        .input-container {
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+        }
+
+        .input-box {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 14px;
+            resize: none;
+            outline: none;
+            transition: border-color 0.2s;
+            font-family: inherit;
+            line-height: 1.5;
+            max-height: 150px;
+            min-height: 44px;
+        }
+
+        .input-box::placeholder {
+            color: var(--text-tertiary);
+            font-size: 13px;
+        }
+
+        .input-box:focus {
+            border-color: var(--accent-color);
+        }
+
+        .send-btn {
+            width: 48px;
+            height: 48px;
+            border: none;
+            background: var(--accent-color);
+            color: white;
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+            flex-shrink: 0;
+            touch-action: manipulation;
+        }
+
+        .send-btn:hover {
+            background: var(--accent-hover);
+        }
+
+        .send-btn:active {
+            transform: scale(0.95);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .input-hint {
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-tertiary);
+            margin-top: 8px;
+        }
+
+        /* 模型选择器 */
+        .model-selector {
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .model-select-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 14px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            color: var(--text-primary);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            touch-action: manipulation;
+            white-space: nowrap;
+        }
+
+        .model-select-btn:hover {
+            border-color: var(--accent-color);
+        }
+
+        .model-select-btn:active {
+            transform: scale(0.98);
+        }
+
+        .dropdown-arrow {
+            font-size: 10px;
+            color: var(--text-tertiary);
+            transition: transform 0.2s;
+        }
+
+        .model-select-btn.open .dropdown-arrow {
+            transform: rotate(180deg);
+        }
+
+        .model-dropdown {
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 0;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            min-width: 200px;
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(10px);
+            transition: all 0.2s;
+        }
+
+        .model-dropdown.open {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .model-option {
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .model-option:last-child {
+            border-bottom: none;
+        }
+
+        .model-option:hover {
+            background: var(--bg-secondary);
+        }
+
+        .model-option.active {
+            background: var(--accent-light);
+        }
+
+        .model-option.active .model-name {
+            color: var(--accent-color);
+        }
+
+        .model-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .model-desc {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            margin-top: 2px;
+        }
+
+        /* 设置面板 */
+        .settings-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+
+        .settings-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .settings-panel {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 400px;
+            max-width: 100%;
+            height: 100vh;
+            height: 100dvh;
+            background: var(--bg-primary);
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+            transition: right 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .settings-panel.open {
+            right: 0;
+        }
+
+        .settings-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .settings-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .settings-close {
+            width: 40px;
+            height: 40px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            touch-action: manipulation;
+        }
+
+        .settings-close:hover {
+            background: var(--bg-secondary);
+        }
+
+        .settings-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .settings-section {
+            margin-bottom: 24px;
+        }
+
+        .settings-section-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .provider-tabs {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .provider-tab {
+            padding: 8px 16px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+            touch-action: manipulation;
+        }
+
+        .provider-tab.active {
+            border-color: var(--accent-color);
+            background: var(--accent-light);
+            color: var(--accent-color);
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: var(--text-primary);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.2s;
+            font-family: inherit;
+        }
+
+        .form-input:focus {
+            border-color: var(--accent-color);
+        }
+
+        .form-hint {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            margin-top: 4px;
+            line-height: 1.4;
+        }
+
+        .settings-footer {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            flex: 1;
+            touch-action: manipulation;
+        }
+
+        .btn-primary {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border-color);
+        }
+
+        .btn-secondary:active {
+            transform: scale(0.98);
+        }
+
+        /* 加载动画 */
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            padding: 4px 0;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--text-tertiary);
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-10px); }
+        }
+
+        /* 图片生成中 */
+        .image-generating {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            padding: 24px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--accent-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 代码块样式 */
+        .code-block {
+            background: #1f2937;
+            color: #e5e7eb;
+            padding: 12px;
+            border-radius: var(--radius);
+            overflow-x: auto;
+            font-family: 'SF Mono', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            margin: 8px 0;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .code-block code {
+            font-family: inherit;
+        }
+
+        /* 响应式 - 平板 */
+        @media (max-width: 1024px) {
+            .quick-actions {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* 响应式 - 手机 */
+        @media (max-width: 768px) {
+            html {
+                font-size: 15px;
+            }
+
+            .sidebar {
+                position: fixed;
+                left: 0;
+                transform: translateX(-100%);
+                z-index: 100;
+                height: 100vh;
+                height: 100dvh;
+                box-shadow: var(--shadow-lg);
+            }
+            
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .menu-btn {
+                display: flex;
+            }
+
+            .chat-header {
+                padding: 0 12px;
+            }
+
+            .chat-title {
+                font-size: 15px;
+            }
+
+            .mode-toggle {
+                padding: 2px;
+            }
+
+            .mode-btn {
+                padding: 8px 16px;
+                font-size: 14px;
+            }
+
+            .icon-btn {
+                width: 36px;
+                height: 36px;
+                font-size: 16px;
+            }
+
+            .chat-messages {
+                padding: 12px;
+                gap: 12px;
+            }
+
+            .welcome-screen {
+                gap: 16px;
+                padding: 16px;
+            }
+
+            .welcome-icon {
+                width: 56px;
+                height: 56px;
+                font-size: 24px;
+            }
+
+            .welcome-title {
+                font-size: 20px;
+            }
+
+            .welcome-subtitle {
+                font-size: 13px;
+            }
+
+            .quick-actions {
+                grid-template-columns: 1fr;
+                gap: 8px;
+                margin-top: 12px;
+            }
+
+            .quick-action-btn {
+                padding: 12px;
+            }
+
+            .quick-action-btn .icon {
+                font-size: 18px;
+                margin-bottom: 6px;
+            }
+
+            .quick-action-btn .label {
+                font-size: 13px;
+            }
+
+            .quick-action-btn .desc {
+                font-size: 11px;
+            }
+
+            .message {
+                gap: 8px;
+            }
+
+            .message-avatar {
+                width: 28px;
+                height: 28px;
+                font-size: 12px;
+            }
+
+            .message-content {
+                padding: 10px 12px;
+                font-size: 15px;
+            }
+
+            .input-area {
+                padding: 8px 12px;
+            }
+
+            .input-container {
+                gap: 6px;
+            }
+
+            .input-box {
+                padding: 8px 12px;
+                font-size: 16px;
+                min-height: 40px;
+                border-radius: 20px;
+            }
+
+            .input-box::placeholder {
+                font-size: 14px;
+            }
+
+            .send-btn {
+                width: 44px;
+                height: 44px;
+                border-radius: 12px;
+            }
+
+            .input-hint {
+                font-size: 11px;
+                margin-top: 6px;
+            }
+
+            .settings-panel {
+                width: 100%;
+                right: -100%;
+            }
+
+            .settings-content {
+                padding: 16px;
+            }
+
+            .provider-tabs {
+                gap: 6px;
+            }
+
+            .provider-tab {
+                padding: 6px 12px;
+                font-size: 13px;
+            }
+
+            .form-input {
+                padding: 10px 12px;
+                font-size: 16px;
+            }
+
+            .message-actions {
+                opacity: 1;
+            }
+
+            .msg-action-btn {
+                padding: 8px 12px;
+                font-size: 13px;
+            }
+
+            .chat-history-item .delete-btn {
+                opacity: 1;
+                padding: 8px;
+            }
+        }
+
+        /* 小屏幕手机 */
+        @media (max-width: 380px) {
+            .mode-btn {
+                padding: 7px 14px;
+                font-size: 13px;
+            }
+
+            .welcome-title {
+                font-size: 18px;
+            }
+
+            .quick-action-btn {
+                padding: 10px;
+            }
+        }
+
+        /* 滚动条 */
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--text-tertiary);
+            border-radius: 2px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+
+        /* 安全区域适配 */
+        @supports (padding-bottom: env(safe-area-inset-bottom)) {
+            .input-area {
+                padding-bottom: calc(12px + env(safe-area-inset-bottom));
+            }
+
+            .settings-footer {
+                padding-bottom: calc(16px + env(safe-area-inset-bottom));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- 侧边栏遮罩 -->
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+        <!-- 侧边栏 -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <button class="new-chat-btn" onclick="startNewChat()">
+                    <span>+</span>
+                    <span>新对话</span>
+                </button>
+            </div>
+            <div class="sidebar-content" id="chatHistory">
+                <!-- 历史记录将在这里动态生成 -->
+            </div>
+            <div class="sidebar-footer">
+                <button class="settings-btn" onclick="openSettings()">
+                    <span>⚙️</span>
+                    <span>API 设置</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- 主内容 -->
+        <main class="main-content">
+            <div class="chat-header">
+                <div class="header-left">
+                    <button class="menu-btn" onclick="toggleSidebar()" title="菜单">☰</button>
+                    <div class="chat-title" id="chatTitle">新对话</div>
+                </div>
+                <div class="header-actions">
+                    <div class="mode-toggle">
+                        <button class="mode-btn active" id="chatModeBtn" onclick="setMode('chat')">对话</button>
+                        <button class="mode-btn" id="imageModeBtn" onclick="setMode('image')">生图</button>
+                    </div>
+                    <button class="icon-btn" onclick="toggleTheme()" title="切换主题">🌓</button>
+                </div>
+            </div>
+
+            <div class="chat-messages" id="chatMessages">
+                <div class="welcome-screen" id="welcomeScreen">
+                    <div class="welcome-icon">🤖</div>
+                    <div class="welcome-title">云-chat</div>
+                    <div class="welcome-subtitle">
+                        我可以帮您回答问题、创作内容，或者根据描述生成图片，点击右上角切换模式哦。
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-area">
+                <div class="input-container">
+                    <div class="model-selector">
+                        <button class="model-select-btn" id="modelSelectBtn" onclick="toggleModelDropdown()">
+                            <span id="currentModelLabel">Agnes AI</span>
+                            <span class="dropdown-arrow">▼</span>
+                        </button>
+                        <div class="model-dropdown" id="modelDropdown">
+                            <div class="model-option active" data-provider="agnes" onclick="switchModel('agnes')">
+                                <div class="model-name">Agnes AI</div>
+                                <div class="model-desc">默认配置，无需设置</div>
+                            </div>
+                            <div class="model-option" data-provider="deepseek" onclick="switchModel('deepseek')">
+                                <div class="model-name">DeepSeek</div>
+                                <div class="model-desc">需配置 API Key</div>
+                            </div>
+                            <div class="model-option" data-provider="siliconflow" onclick="switchModel('siliconflow')">
+                                <div class="model-name">硅基流动</div>
+                                <div class="model-desc">需配置 API Key</div>
+                            </div>
+                        </div>
+                    </div>
+                    <textarea 
+                        class="input-box" 
+                        id="messageInput" 
+                        placeholder="输入消息..." 
+                        rows="1"
+                        onkeydown="handleKeyDown(event)"
+                        oninput="autoResize(this)"
+                    ></textarea>
+                    <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                    </button>
+                </div>
+                <div class="input-hint" id="inputHint">按 Enter 发送，Shift + Enter 换行 · 当前模型: <span id="hintModelName">Agnes AI</span></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 设置面板 -->
+    <div class="settings-overlay" id="settingsOverlay" onclick="closeSettings()"></div>
+    <div class="settings-panel" id="settingsPanel">
+        <div class="settings-header">
+            <div class="settings-title">API 设置</div>
+            <button class="settings-close" onclick="closeSettings()">✕</button>
+        </div>
+        <div class="settings-content">
+            <div class="settings-section">
+                <div class="settings-section-title">选择服务商</div>
+                <div class="provider-tabs">
+                    <button class="provider-tab active" data-provider="agnes" onclick="switchProvider('agnes')">Agnes AI</button>
+                    <button class="provider-tab" data-provider="deepseek" onclick="switchProvider('deepseek')">DeepSeek</button>
+                    <button class="provider-tab" data-provider="siliconflow" onclick="switchProvider('siliconflow')">硅基流动</button>
+                </div>
+            </div>
+
+            <div class="settings-section" id="agnesConfigSection">
+                <div class="settings-section-title">Agnes AI 默认配置</div>
+                <div class="form-group">
+                    <label class="form-label">对话模型</label>
+                    <input type="text" class="form-input" value="agnes-2.0-flash" disabled>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">生图模型</label>
+                    <input type="text" class="form-input" value="agnes-image-2.1-flash" disabled>
+                </div>
+                <div class="form-hint" style="color: var(--accent-color);">Agnes AI 为默认配置，无需修改</div>
+            </div>
+
+            <div class="settings-section" id="customConfigSection">
+                <div class="settings-section-title">对话 API 配置</div>
+                <div class="form-group">
+                    <label class="form-label">API Key</label>
+                    <input type="password" class="form-input" id="chatApiKey" placeholder="输入您的 API Key">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Base URL</label>
+                    <input type="text" class="form-input" id="chatBaseUrl" placeholder="https://api.example.com/v1">
+                    <div class="form-hint">API 的基础地址，通常以 /v1 结尾</div>
+                </div>
+            </div>
+
+            <div class="settings-section" id="customImageConfigSection">
+                <div class="settings-section-title">生图 API 配置</div>
+                <div class="form-group">
+                    <label class="form-label">API Key</label>
+                    <input type="password" class="form-input" id="imageApiKey" placeholder="输入您的 API Key">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Base URL</label>
+                    <input type="text" class="form-input" id="imageBaseUrl" placeholder="https://api.example.com/v1">
+                    <div class="form-hint">生图 API 的基础地址</div>
+                </div>
+            </div>
+
+            <div class="settings-section" id="otherConfigSection">
+                <div class="settings-section-title">其他设置</div>
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" id="useSameConfig" checked onchange="toggleSameConfig()">
+                        对话和生图使用相同配置
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div class="settings-footer">
+            <button class="btn btn-secondary" onclick="resetSettings()">恢复默认</button>
+            <button class="btn btn-primary" onclick="saveSettings()">保存设置</button>
+        </div>
+    </div>
+
+    <script>
+        // ==================== 配置管理 ====================
+        const DEFAULT_CONFIG = {
+            provider: 'agnes',
+            chat: {
+                apiKey: 'sk-pCr5Psx6VmL651Km3x2mgdSpBKHpDJnyuchjMKVweznStEPQ',
+                baseUrl: 'https://apihub.agnes-ai.com/v1',
+                model: 'agnes-2.0-flash'
+            },
+            image: {
+                apiKey: 'sk-pCr5Psx6VmL651Km3x2mgdSpBKHpDJnyuchjMKVweznStEPQ',
+                baseUrl: 'https://apihub.agnes-ai.com/v1',
+                model: 'agnes-image-2.1-flash'
+            },
+            useSameConfig: true
+        };
+
+        const PROVIDER_PRESETS = {
+            agnes: {
+                chat: { baseUrl: 'https://apihub.agnes-ai.com/v1', model: 'agnes-2.0-flash' },
+                image: { baseUrl: 'https://apihub.agnes-ai.com/v1', model: 'agnes-image-2.1-flash' }
+            },
+            deepseek: {
+                chat: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
+                image: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat' }
+            },
+            siliconflow: {
+                chat: { baseUrl: 'https://api.siliconflow.cn/v1', model: 'deepseek-ai/DeepSeek-V2.5' },
+                image: { baseUrl: 'https://api.siliconflow.cn/v1', model: 'stabilityai/stable-diffusion-3-5-large' }
+            }
+        };
+
+        let config = JSON.parse(localStorage.getItem('aiChatConfig')) || { ...DEFAULT_CONFIG };
+        let currentMode = 'chat';
+        let currentChatId = null;
+        let chats = JSON.parse(localStorage.getItem('aiChats')) || [];
+        let isGenerating = false;
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSettings();
+            renderChatHistory();
+            if (chats.length === 0) {
+                startNewChat();
+            } else {
+                loadChat(chats[0].id);
+            }
+
+            // 添加触摸滑动支持
+            setupTouchGestures();
+        });
+
+        // ==================== 触摸手势支持 ====================
+        function setupTouchGestures() {
+            let touchStartX = 0;
+            let touchEndX = 0;
+            const sidebar = document.getElementById('sidebar');
+            const minSwipeDistance = 50;
+
+            document.addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+            }, { passive: true });
+
+            document.addEventListener('touchend', (e) => {
+                touchEndX = e.changedTouches[0].screenX;
+                handleSwipe();
+            }, { passive: true });
+
+            function handleSwipe() {
+                const swipeDistance = touchEndX - touchStartX;
+                const sidebarOpen = sidebar.classList.contains('open');
+
+                // 从左边缘向右滑动打开侧边栏
+                if (swipeDistance > minSwipeDistance && touchStartX < 50 && !sidebarOpen) {
+                    openSidebar();
+                }
+
+                // 向左滑动关闭侧边栏
+                if (swipeDistance < -minSwipeDistance && sidebarOpen) {
+                    closeSidebar();
+                }
+            }
+        }
+
+        // ==================== 侧边栏管理 ====================
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (sidebar.classList.contains('open')) {
+                closeSidebar();
+            } else {
+                openSidebar();
+            }
+        }
+
+        function openSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.add('open');
+            overlay.classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.remove('open');
+            overlay.classList.remove('open');
+            document.body.style.overflow = '';
+        }
+
+        // ==================== 聊天管理 ====================
+        function startNewChat() {
+            const chat = {
+                id: Date.now().toString(),
+                title: '新对话',
+                messages: [],
+                mode: 'chat',
+                createdAt: new Date().toISOString()
+            };
+            chats.unshift(chat);
+            saveChats();
+            loadChat(chat.id);
+            renderChatHistory();
+            // 移动端关闭侧边栏
+            closeSidebar();
+        }
+
+        function loadChat(chatId) {
+            currentChatId = chatId;
+            const chat = chats.find(c => c.id === chatId);
+            if (!chat) return;
+
+            document.getElementById('chatTitle').textContent = chat.title;
+            currentMode = chat.mode || 'chat';
+            updateModeUI();
+
+            const messagesContainer = document.getElementById('chatMessages');
+            if (chat.messages.length === 0) {
+                messagesContainer.innerHTML = `
+                    <div class="welcome-screen">
+                        <div class="welcome-icon">🤖</div>
+                        <div class="welcome-title">云-chat</div>
+                        <div class="welcome-subtitle">
+                            我可以帮您回答问题、创作内容，或者根据描述生成图片，点击右上角切换模式哦。
+                        </div>
+                    </div>
+                `;
+            } else {
+                messagesContainer.innerHTML = '';
+                chat.messages.forEach(msg => {
+                    appendMessage(msg.role, msg.content, msg.type, false);
+                });
+            }
+
+            renderChatHistory();
+            // 移动端关闭侧边栏
+            closeSidebar();
+        }
+
+        function saveChats() {
+            localStorage.setItem('aiChats', JSON.stringify(chats));
+        }
+
+        function renderChatHistory() {
+            const container = document.getElementById('chatHistory');
+            container.innerHTML = chats.map(chat => `
+                <div class="chat-history-item ${chat.id === currentChatId ? 'active' : ''}" onclick="loadChat('${chat.id}')">
+                    <span>${chat.mode === 'image' ? '🎨' : '💬'}</span>
+                    <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${chat.title}</span>
+                    <button class="delete-btn" onclick="event.stopPropagation();deleteChat('${chat.id}')">🗑️</button>
+                </div>
+            `).join('');
+        }
+
+        function deleteChat(chatId) {
+            if (!confirm('确定要删除这个对话吗？')) return;
+            chats = chats.filter(c => c.id !== chatId);
+            saveChats();
+            if (currentChatId === chatId) {
+                if (chats.length > 0) {
+                    loadChat(chats[0].id);
+                } else {
+                    startNewChat();
+                }
+            } else {
+                renderChatHistory();
+            }
+        }
+
+        // ==================== 模式切换 ====================
+        function setMode(mode) {
+            currentMode = mode;
+            const chat = chats.find(c => c.id === currentChatId);
+            if (chat) {
+                chat.mode = mode;
+                saveChats();
+            }
+            updateModeUI();
+        }
+
+        function updateModeUI() {
+            document.getElementById('chatModeBtn').classList.toggle('active', currentMode === 'chat');
+            document.getElementById('imageModeBtn').classList.toggle('active', currentMode === 'image');
+
+            // 同步更新输入框提示和底部文字
+            const input = document.getElementById('messageInput');
+            const hint = document.getElementById('inputHint');
+            if (currentMode === 'image') {
+                input.placeholder = '描述您想要生成的图片...';
+                hint.innerHTML = '生图模式 · 当前模型: <span id="hintModelName">' + getModelDisplayName() + '</span>';
+            } else {
+                input.placeholder = '输入消息...';
+                hint.innerHTML = '按 Enter 发送，Shift + Enter 换行 · 当前模型: <span id="hintModelName">' + getModelDisplayName() + '</span>';
+            }
+        }
+
+        function getModelDisplayName() {
+            if (config.provider === 'agnes') return 'Agnes AI';
+            if (config.provider === 'deepseek') return 'DeepSeek';
+            if (config.provider === 'siliconflow') return '硅基流动';
+            return 'Agnes AI';
+        }
+
+        // ==================== 消息发送 ====================
+        function handleKeyDown(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function autoResize(textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
+        }
+
+        function sendQuickMessage(text) {
+            document.getElementById('messageInput').value = text;
+            autoResize(document.getElementById('messageInput'));
+            sendMessage();
+        }
+
+        async function sendMessage() {
+            if (isGenerating) return;
+
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            if (!message) return;
+
+            // 检查API配置 - 默认使用 Agnes AI，无需用户配置
+            const apiConfig = getApiConfig();
+            if (!apiConfig.apiKey) {
+                alert('请先配置API Key，点击左下角"API 设置"进行配置');
+                openSettings();
+                return;
+            }
+
+            input.value = '';
+            input.style.height = 'auto';
+            isGenerating = true;
+            document.getElementById('sendBtn').disabled = true;
+
+            // 添加用户消息
+            appendMessage('user', message, 'text');
+
+            // 更新聊天标题
+            const chat = chats.find(c => c.id === currentChatId);
+            if (chat && chat.title === '新对话') {
+                chat.title = message.slice(0, 20) + (message.length > 20 ? '...' : '');
+                document.getElementById('chatTitle').textContent = chat.title;
+                saveChats();
+                renderChatHistory();
+            }
+
+            if (currentMode === 'image') {
+                await generateImage(message, apiConfig);
+            } else {
+                await sendChatMessage(message, apiConfig);
+            }
+
+            isGenerating = false;
+            document.getElementById('sendBtn').disabled = false;
+        }
+
+        // ==================== 对话功能 ====================
+        async function sendChatMessage(message, apiConfig) {
+            // 添加AI正在输入的指示器
+            const typingId = appendTypingIndicator();
+
+            try {
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiConfig.apiKey}`
+                };
+
+                const response = await fetch(`${apiConfig.baseUrl}/chat/completions`, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        model: apiConfig.model || 'agnes-2.0-flash',
+                        messages: [
+                            { role: 'system', content: '你是一个有用的AI助手。' },
+                            { role: 'user', content: message }
+                        ],
+                        stream: true
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                removeTypingIndicator(typingId);
+                const messageId = 'msg-' + Date.now();
+                appendMessage('ai', '', 'text', true, messageId);
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullContent = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6);
+                            if (data === '[DONE]') continue;
+
+                            try {
+                                const parsed = JSON.parse(data);
+                                const content = parsed.choices?.[0]?.delta?.content || '';
+                                if (content) {
+                                    fullContent += content;
+                                    updateMessageContent(messageId, fullContent);
+                                }
+                            } catch (e) {
+                                // 忽略解析错误
+                            }
+                        }
+                    }
+                }
+
+                // 保存消息到历史
+                saveMessageToChat('user', message, 'text');
+                saveMessageToChat('ai', fullContent, 'text');
+
+            } catch (error) {
+                removeTypingIndicator(typingId);
+                appendMessage('ai', '抱歉，发生了错误：' + error.message + '\n\n请检查您的API配置是否正确。', 'text');
+                saveMessageToChat('user', message, 'text');
+                saveMessageToChat('ai', '抱歉，发生了错误：' + error.message, 'text');
+            }
+        }
+
+        // ==================== 生图功能 ====================
+        async function generateImage(prompt, apiConfig) {
+            const generatingId = appendGeneratingIndicator();
+
+            try {
+                // 使用 Agnes AI 生图接口 (OpenAI 兼容)
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiConfig.apiKey}`
+                };
+
+                const response = await fetch(`${apiConfig.baseUrl}/images/generations`, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        model: apiConfig.model || 'agnes-image-2.1-flash',
+                        prompt: prompt,
+                        size: '1024x1024'
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const imageUrl = data.data?.[0]?.url;
+
+                if (imageUrl) {
+                    removeGeneratingIndicator(generatingId);
+                    appendMessage('ai', imageUrl, 'image');
+                    saveMessageToChat('user', prompt, 'text');
+                    saveMessageToChat('ai', imageUrl, 'image');
+                } else {
+                    throw new Error('未获取到图片URL');
+                }
+
+            } catch (error) {
+                removeGeneratingIndicator(generatingId);
+                appendMessage('ai', '图片生成失败：' + error.message + '\n\n请检查您的生图API配置是否正确。', 'text');
+                saveMessageToChat('user', prompt, 'text');
+                saveMessageToChat('ai', '图片生成失败：' + error.message, 'text');
+            }
+        }
+
+        // ==================== 消息展示 ====================
+        function appendMessage(role, content, type, animate = true, id = null) {
+            const container = document.getElementById('chatMessages');
+            const welcomeScreen = document.getElementById('welcomeScreen');
+            if (welcomeScreen) {
+                welcomeScreen.remove();
+            }
+
+            const messageId = id || 'msg-' + Date.now();
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            messageDiv.id = messageId;
+
+            let contentHtml = '';
+            if (type === 'image') {
+                contentHtml = `<img src="${content}" alt="生成的图片" class="message-image" onload="scrollToBottom()" loading="lazy">`;
+            } else {
+                contentHtml = formatContent(content);
+            }
+
+            messageDiv.innerHTML = `
+                <div class="message-avatar">${role === 'user' ? '👤' : '🤖'}</div>
+                <div class="message-content" id="content-${messageId}">
+                    ${contentHtml}
+                </div>
+            `;
+
+            if (role === 'ai' && !animate) {
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'message-actions';
+                actionsDiv.innerHTML = `
+                    <button class="msg-action-btn" onclick="copyMessage('${messageId}')">复制</button>
+                `;
+                messageDiv.querySelector('.message-content').appendChild(actionsDiv);
+            }
+
+            container.appendChild(messageDiv);
+            scrollToBottom();
+            return messageId;
+        }
+
+        function updateMessageContent(messageId, content) {
+            const contentDiv = document.getElementById(`content-${messageId}`);
+            if (contentDiv) {
+                contentDiv.innerHTML = formatContent(content);
+                scrollToBottom();
+            }
+        }
+
+        function formatContent(content) {
+            // 简单的Markdown格式化
+            return content
+                .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre class="code-block"><code>$2</code></pre>')
+                .replace(/`([^`]+)`/g, '<code style="background:var(--bg-secondary);padding:2px 6px;border-radius:4px;font-family:monospace;font-size:0.9em;">$1</code>')
+                .replace(/\n/g, '<br>');
+        }
+
+        function appendTypingIndicator() {
+            const id = 'typing-' + Date.now();
+            const container = document.getElementById('chatMessages');
+            const welcomeScreen = document.getElementById('welcomeScreen');
+            if (welcomeScreen) welcomeScreen.remove();
+
+            const div = document.createElement('div');
+            div.className = 'message ai';
+            div.id = id;
+            div.innerHTML = `
+                <div class="message-avatar">🤖</div>
+                <div class="message-content">
+                    <div class="typing-indicator">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(div);
+            scrollToBottom();
+            return id;
+        }
+
+        function removeTypingIndicator(id) {
+            const div = document.getElementById(id);
+            if (div) div.remove();
+        }
+
+        function appendGeneratingIndicator() {
+            const id = 'generating-' + Date.now();
+            const container = document.getElementById('chatMessages');
+            const welcomeScreen = document.getElementById('welcomeScreen');
+            if (welcomeScreen) welcomeScreen.remove();
+
+            const div = document.createElement('div');
+            div.className = 'message ai';
+            div.id = id;
+            div.innerHTML = `
+                <div class="message-avatar">🎨</div>
+                <div class="message-content">
+                    <div class="image-generating">
+                        <div class="spinner"></div>
+                        <div>正在生成图片，请稍候...</div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(div);
+            scrollToBottom();
+            return id;
+        }
+
+        function removeGeneratingIndicator(id) {
+            const div = document.getElementById(id);
+            if (div) div.remove();
+        }
+
+        function scrollToBottom() {
+            const container = document.getElementById('chatMessages');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function saveMessageToChat(role, content, type) {
+            const chat = chats.find(c => c.id === currentChatId);
+            if (chat) {
+                chat.messages.push({ role, content, type, timestamp: new Date().toISOString() });
+                saveChats();
+            }
+        }
+
+        function copyMessage(messageId) {
+            const contentDiv = document.getElementById(`content-${messageId}`);
+            if (contentDiv) {
+                const text = contentDiv.innerText;
+                navigator.clipboard.writeText(text).then(() => {
+                    // 显示复制成功提示
+                    const btn = contentDiv.querySelector('.msg-action-btn');
+                    const originalText = btn.textContent;
+                    btn.textContent = '已复制!';
+                    setTimeout(() => {
+                        btn.textContent = originalText;
+                    }, 1500);
+                });
+            }
+        }
+
+        // ==================== API配置管理 ====================
+        function getApiConfig() {
+            // 如果用户未配置自定义API（provider为agnes或apiKey为空），使用Agnes AI默认配置
+            const isDefaultConfig = config.provider === 'agnes' || 
+                (!config.chat.apiKey && !config.image.apiKey);
+            
+            if (isDefaultConfig) {
+                // 根据当前模式自动切换 Agnes AI 模型
+                if (currentMode === 'image') {
+                    return {
+                        apiKey: DEFAULT_CONFIG.image.apiKey,
+                        baseUrl: DEFAULT_CONFIG.image.baseUrl,
+                        model: DEFAULT_CONFIG.image.model
+                    };
+                } else {
+                    return {
+                        apiKey: DEFAULT_CONFIG.chat.apiKey,
+                        baseUrl: DEFAULT_CONFIG.chat.baseUrl,
+                        model: DEFAULT_CONFIG.chat.model
+                    };
+                }
+            }
+            
+            // 用户配置了自定义API，根据模式返回对应配置
+            if (currentMode === 'image' && !config.useSameConfig) {
+                return config.image;
+            }
+            return config.chat;
+        }
+
+        // ==================== 设置面板 ====================
+        function openSettings() {
+            document.getElementById('settingsPanel').classList.add('open');
+            document.getElementById('settingsOverlay').classList.add('open');
+            loadSettings();
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsPanel').classList.remove('open');
+            document.getElementById('settingsOverlay').classList.remove('open');
+        }
+
+        function loadSettings() {
+            // 加载保存的配置
+            const savedConfig = JSON.parse(localStorage.getItem('aiChatConfig'));
+            if (savedConfig) {
+                config = savedConfig;
+            }
+
+            // 更新UI
+            document.querySelectorAll('.provider-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.provider === config.provider);
+            });
+
+            // 根据当前选择的服务商显示/隐藏配置区域
+            updateConfigSections(config.provider);
+
+            // 只有当不是 Agnes AI 时才加载自定义配置
+            if (config.provider !== 'agnes') {
+                document.getElementById('chatApiKey').value = config.chat.apiKey || '';
+                document.getElementById('chatBaseUrl').value = config.chat.baseUrl || '';
+                document.getElementById('imageApiKey').value = config.image.apiKey || '';
+                document.getElementById('imageBaseUrl').value = config.image.baseUrl || '';
+                document.getElementById('useSameConfig').checked = config.useSameConfig !== false;
+                toggleSameConfig();
+            }
+        }
+
+        function updateConfigSections(provider) {
+            const agnesSection = document.getElementById('agnesConfigSection');
+            const customSection = document.getElementById('customConfigSection');
+            const customImageSection = document.getElementById('customImageConfigSection');
+            const otherSection = document.getElementById('otherConfigSection');
+
+            if (provider === 'agnes') {
+                // Agnes AI: 只显示默认配置，隐藏自定义配置
+                agnesSection.style.display = 'block';
+                customSection.style.display = 'none';
+                customImageSection.style.display = 'none';
+                otherSection.style.display = 'none';
+            } else {
+                // 其他服务商: 显示自定义配置，隐藏 Agnes 配置
+                agnesSection.style.display = 'none';
+                customSection.style.display = 'block';
+                customImageSection.style.display = 'block';
+                otherSection.style.display = 'block';
+            }
+        }
+
+        function switchProvider(provider) {
+            config.provider = provider;
+            const preset = PROVIDER_PRESETS[provider];
+
+            document.querySelectorAll('.provider-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.provider === provider);
+            });
+
+            // 更新配置区域显示
+            updateConfigSections(provider);
+
+            // 只有非 Agnes 服务商才更新输入框
+            if (provider !== 'agnes') {
+                document.getElementById('chatBaseUrl').value = preset.chat.baseUrl;
+                document.getElementById('chatApiKey').value = '';
+                document.getElementById('imageApiKey').value = '';
+                if (config.useSameConfig) {
+                    document.getElementById('imageBaseUrl').value = preset.image.baseUrl;
+                }
+            }
+        }
+
+        function toggleSameConfig() {
+            const useSame = document.getElementById('useSameConfig').checked;
+            const imageSection = document.getElementById('customImageConfigSection');
+            if (useSame) {
+                imageSection.style.opacity = '0.5';
+                imageSection.style.pointerEvents = 'none';
+                // 同步值
+                document.getElementById('imageApiKey').value = document.getElementById('chatApiKey').value;
+                document.getElementById('imageBaseUrl').value = document.getElementById('chatBaseUrl').value;
+            } else {
+                imageSection.style.opacity = '1';
+                imageSection.style.pointerEvents = 'auto';
+            }
+        }
+
+        function saveSettings() {
+            // 只有非 Agnes 服务商才保存自定义配置
+            if (config.provider !== 'agnes') {
+                config.chat.apiKey = document.getElementById('chatApiKey').value.trim();
+                config.chat.baseUrl = document.getElementById('chatBaseUrl').value.trim();
+                config.image.apiKey = document.getElementById('imageApiKey').value.trim();
+                config.image.baseUrl = document.getElementById('imageBaseUrl').value.trim();
+                config.useSameConfig = document.getElementById('useSameConfig').checked;
+
+                if (config.useSameConfig) {
+                    config.image.apiKey = config.chat.apiKey;
+                    config.image.baseUrl = config.chat.baseUrl;
+                }
+            } else {
+                // Agnes AI: 恢复默认配置
+                config.chat.apiKey = DEFAULT_CONFIG.chat.apiKey;
+                config.chat.baseUrl = DEFAULT_CONFIG.chat.baseUrl;
+                config.image.apiKey = DEFAULT_CONFIG.image.apiKey;
+                config.image.baseUrl = DEFAULT_CONFIG.image.baseUrl;
+                config.useSameConfig = true;
+            }
+
+            localStorage.setItem('aiChatConfig', JSON.stringify(config));
+            closeSettings();
+            
+            // 显示保存成功提示
+            const hint = document.getElementById('inputHint');
+            const originalText = hint.textContent;
+            hint.textContent = '设置已保存';
+            hint.style.color = 'var(--accent-color)';
+            setTimeout(() => {
+                hint.textContent = originalText;
+                hint.style.color = '';
+            }, 2000);
+        }
+
+        function resetSettings() {
+            if (confirm('确定要恢复默认设置吗？')) {
+                config = { ...DEFAULT_CONFIG };
+                localStorage.setItem('aiChatConfig', JSON.stringify(config));
+                loadSettings();
+            }
+        }
+
+        // ==================== 模型切换 ====================
+        function toggleModelDropdown() {
+            const dropdown = document.getElementById('modelDropdown');
+            const btn = document.getElementById('modelSelectBtn');
+            dropdown.classList.toggle('open');
+            btn.classList.toggle('open');
+        }
+
+        function closeModelDropdown() {
+            const dropdown = document.getElementById('modelDropdown');
+            const btn = document.getElementById('modelSelectBtn');
+            dropdown.classList.remove('open');
+            btn.classList.remove('open');
+        }
+
+        function switchModel(provider) {
+            // 检查是否切换到需要配置的服务商
+            if (provider !== 'agnes') {
+                const preset = PROVIDER_PRESETS[provider];
+                const savedConfig = JSON.parse(localStorage.getItem('aiChatConfig'));
+                const hasApiKey = savedConfig && (
+                    (savedConfig.provider === provider && savedConfig.chat.apiKey) ||
+                    (savedConfig.provider === provider && savedConfig.image.apiKey)
+                );
+                
+                // 如果没有配置过该服务商的API Key，提示用户配置
+                if (!hasApiKey) {
+                    const confirmConfig = confirm(`切换到 ${provider === 'deepseek' ? 'DeepSeek' : '硅基流动'} 需要配置 API Key。\n\n是否现在前往配置？`);
+                    if (confirmConfig) {
+                        // 先切换provider以便设置面板显示正确的配置项
+                        config.provider = provider;
+                        updateModelUI(provider);
+                        closeModelDropdown();
+                        openSettings();
+                        return;
+                    } else {
+                        // 用户取消，保持当前模型
+                        closeModelDropdown();
+                        return;
+                    }
+                }
+            }
+            
+            // 执行切换
+            config.provider = provider;
+            
+            // Agnes AI 恢复默认配置
+            if (provider === 'agnes') {
+                config.chat.apiKey = DEFAULT_CONFIG.chat.apiKey;
+                config.chat.baseUrl = DEFAULT_CONFIG.chat.baseUrl;
+                config.chat.model = DEFAULT_CONFIG.chat.model;
+                config.image.apiKey = DEFAULT_CONFIG.image.apiKey;
+                config.image.baseUrl = DEFAULT_CONFIG.image.baseUrl;
+                config.image.model = DEFAULT_CONFIG.image.model;
+                config.useSameConfig = true;
+            }
+            
+            localStorage.setItem('aiChatConfig', JSON.stringify(config));
+            updateModelUI(provider);
+            closeModelDropdown();
+            
+            // 显示切换成功提示
+            const hint = document.getElementById('inputHint');
+            const modelName = provider === 'agnes' ? 'Agnes AI' : (provider === 'deepseek' ? 'DeepSeek' : '硅基流动');
+            hint.innerHTML = `已切换到 ${modelName} · 按 Enter 发送，Shift + Enter 换行`;
+            hint.style.color = 'var(--accent-color)';
+            setTimeout(() => {
+                hint.style.color = '';
+                hint.innerHTML = `按 Enter 发送，Shift + Enter 换行 · 当前模型: <span id="hintModelName">${modelName}</span>`;
+            }, 2000);
+        }
+
+        function updateModelUI(provider) {
+            const modelName = provider === 'agnes' ? 'Agnes AI' : (provider === 'deepseek' ? 'DeepSeek' : '硅基流动');
+            
+            // 更新按钮文字
+            document.getElementById('currentModelLabel').textContent = modelName;
+            document.getElementById('hintModelName').textContent = modelName;
+            
+            // 更新下拉选项高亮
+            document.querySelectorAll('.model-option').forEach(opt => {
+                opt.classList.toggle('active', opt.dataset.provider === provider);
+            });
+        }
+
+        // 点击外部关闭下拉菜单
+        document.addEventListener('click', (e) => {
+            const selector = document.querySelector('.model-selector');
+            if (selector && !selector.contains(e.target)) {
+                closeModelDropdown();
+            }
+        });
+
+        // ==================== 主题切换 ====================
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('aiChatDarkMode', document.body.classList.contains('dark-mode'));
+        }
+
+        // 加载主题设置
+        if (localStorage.getItem('aiChatDarkMode') === 'true') {
+            document.body.classList.add('dark-mode');
+        }
+
+        // 监听窗口大小变化
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 768) {
+                closeSidebar();
+            }
+        });
+    </script>
+</body>
+</html>
